@@ -1,39 +1,35 @@
-import pandas as pd
+import csv
+import os
 
 class DataCleaner:
 
     @staticmethod
-    def validate_schema(example_df: pd.DataFrame):
-        if example_df.empty:
-            raise ValueError("Example file cannot be empty")
+    def process_csv(example_path, raw_path, output_path):
+        # 1. Template columns-ai get panrom (Schema Validation)
+        with open(example_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            template_columns = next(reader) # First row (header) mattum edukkirom
+            if not template_columns:
+                raise ValueError("Example file cannot be empty")
 
-        return list(example_df.columns)
+        # 2. Raw file-ai read panni, template-ku matharom
+        with open(raw_path, 'r', encoding='utf-8') as f_in, \
+             open(output_path, 'w', encoding='utf-8', newline='') as f_out:
+            
+            reader = csv.DictReader(f_in)
+            writer = csv.DictWriter(f_out, fieldnames=template_columns)
+            writer.writeheader()
 
-    @staticmethod
-    def create_doc_mon1(raw_df: pd.DataFrame):
-        if "Doc_Mon1" not in raw_df.columns and "Doc_Month" in raw_df.columns:
-            # Ensure string formatting
-            raw_df["Doc_Month"] = raw_df["Doc_Month"].astype(str)
+            for row in reader:
+                # Logic: Doc_Mon1 create panrom (Doc_Month-oda first 5 chars)
+                if "Doc_Mon1" not in row and "Doc_Month" in row:
+                    doc_month_val = str(row["Doc_Month"] or "")
+                    row["Doc_Mon1"] = doc_month_val[:5]
 
-            # Extract first 5 characters
-            raw_df["Doc_Mon1"] = raw_df["Doc_Month"].str[:5]
-
-        return raw_df
-
-    @staticmethod
-    def align_to_template(example_df: pd.DataFrame, raw_df: pd.DataFrame):
-
-        template_columns = DataCleaner.validate_schema(example_df)
-
-        # Create Doc_Mon1 if needed
-        raw_df = DataCleaner.create_doc_mon1(raw_df)
-
-        # Add missing columns
-        for col in template_columns:
-            if col not in raw_df.columns:
-                raw_df[col] = pd.NA
-
-        # Remove extra columns (strict schema enforcement)
-        raw_df = raw_df[template_columns]
-
-        return raw_df
+                # Template-la illatha extra columns-ai filter panrom
+                # Template-la irunthu missing-ana columns-ukku empty value tharom
+                filtered_row = {col: row.get(col, "") for col in template_columns}
+                
+                writer.writerow(filtered_row)
+        
+        return output_path
